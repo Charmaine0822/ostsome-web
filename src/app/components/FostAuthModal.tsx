@@ -8,6 +8,8 @@ type AuthView = 'login' | 'signup' | 'forgot' | 'forgot-sent' | 'signup-success'
 type FostAuthModalProps = {
   initialView?: AuthView;
   onClose: () => void;
+  onNavToTerms?: () => void;
+  onNavToPrivacy?: () => void;
 };
 
 // Year options for the "Year of Birth" field: current year back to 100 years ago
@@ -200,9 +202,11 @@ function LoginView({ onSignup, onForgot, onSuccess }: {
 }
 
 // ─── SIGN UP ──────────────────────────────────────────────────────────────────
-function SignupView({ onLogin, onSuccess }: {
+function SignupView({ onLogin, onSuccess, onNavToTerms, onNavToPrivacy }: {
   onLogin: () => void;
   onSuccess: (firstName: string, lastName: string, email: string, token: string | null) => void;
+  onNavToTerms?: () => void;
+  onNavToPrivacy?: () => void;
 }) {
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', phone: '', birthYear: '', password: '', confirm: '',
@@ -356,9 +360,21 @@ function SignupView({ onLogin, onSuccess }: {
           </div>
           <span className="text-xs text-neutral-500 leading-relaxed">
             I agree to Ostsome's{' '}
-            <a href="#" className="text-[#F16C10] hover:underline font-medium">Terms of Service</a>{' '}
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); onNavToTerms?.(); }}
+              className="text-[#F16C10] hover:underline font-medium"
+            >
+              Terms of Service
+            </button>{' '}
             and{' '}
-            <a href="#" className="text-[#F16C10] hover:underline font-medium">Privacy Policy</a>
+            <button
+              type="button"
+              onClick={(e) => { e.preventDefault(); onNavToPrivacy?.(); }}
+              className="text-[#F16C10] hover:underline font-medium"
+            >
+              Privacy Policy
+            </button>
           </span>
         </label>
         {errors.agree && <p className="text-xs text-red-500 mt-1 ml-7">{errors.agree}</p>}
@@ -505,7 +521,7 @@ function SignupSuccessView({ firstName, onClose }: { firstName: string; onClose:
 }
 
 // ─── MAIN MODAL ───────────────────────────────────────────────────────────────
-export function FostAuthModal({ initialView = 'login', onClose }: FostAuthModalProps) {
+export function FostAuthModal({ initialView = 'login', onClose, onNavToTerms, onNavToPrivacy }: FostAuthModalProps) {
   const { login } = useAuth();
   const [view, setView] = useState<AuthView>(initialView);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -555,6 +571,8 @@ export function FostAuthModal({ initialView = 'login', onClose }: FostAuthModalP
             <SignupView
               onLogin={() => setView('login')}
               onSuccess={handleSignupSuccess}
+              onNavToTerms={onNavToTerms}
+              onNavToPrivacy={onNavToPrivacy}
             />
           )}
           {view === 'forgot' && (

@@ -12,6 +12,8 @@ import { DiscoveryByLifestyle } from './components/DiscoveryByLifestyle';
 import { WhyEnthusiasts } from './components/WhyEnthusiasts';
 import { OurStory } from './components/OurStory';
 import { ContactUs } from './components/ContactUs';
+import { TermsOfService } from './components/TermsOfService';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { FostMembership } from './components/FostMembership';
 import { FostMembershipPage } from './components/FostMembershipPage';
 import { ProductListing } from './components/ProductListing';
@@ -31,7 +33,7 @@ import type { Tab as AccountTab } from './components/AccountPage';
 import { useProducts } from './hooks/useProducts';
 import type { Product } from './data/products';
 
-type Page = 'home' | 'products' | 'product-detail' | 'brands' | 'brand-detail' | 'nav-category' | 'checkout' | 'account' | 'admin' | 'launch-exclusive' | 'one-season-off' | 'fost-membership';
+type Page = 'home' | 'products' | 'product-detail' | 'brands' | 'brand-detail' | 'nav-category' | 'checkout' | 'account' | 'admin' | 'launch-exclusive' | 'one-season-off' | 'fost-membership' | 'terms' | 'privacy';
 
 // Everything needed to fully restore a screen — this is what gets stored in
 // browser history so the back/forward buttons can actually move between
@@ -69,6 +71,10 @@ function buildUrl(state: NavState): string {
       return '/clearance';
     case 'fost-membership':
       return '/fost';
+    case 'terms':
+      return '/terms';
+    case 'privacy':
+      return '/privacy';
     case 'checkout':
       return '/checkout';
     case 'home':
@@ -256,6 +262,10 @@ function AppInner() {
       goTo({ page: 'one-season-off' }, { replace: true, scroll: false });
     } else if (path === '/fost') {
       goTo({ page: 'fost-membership' }, { replace: true, scroll: false });
+    } else if (path === '/terms') {
+      goTo({ page: 'terms' }, { replace: true, scroll: false });
+    } else if (path === '/privacy') {
+      goTo({ page: 'privacy' }, { replace: true, scroll: false });
     } else if (window.location.hash !== '#admin') {
       // Establish an initial history entry for the home page so that
       // pressing "back" from the very first navigation has somewhere
@@ -292,6 +302,9 @@ function AppInner() {
     else goTo({ page: 'products' });
   };
 
+  const handleNavToTerms = () => goTo({ page: 'terms' });
+  const handleNavToPrivacy = () => goTo({ page: 'privacy' });
+
   const handleGoToCheckout = () => { openCart(); };
   const handleOrderComplete = (_orderNum: string) => {};
   const handleBackFromCheckout = () => goTo({ page: 'home' });
@@ -304,6 +317,14 @@ function AppInner() {
         <FostAuthModal
           initialView={authModal.view}
           onClose={() => setAuthModal({ open: false, view: 'login' })}
+          onNavToTerms={() => {
+            setAuthModal({ open: false, view: 'login' });
+            handleNavToTerms();
+          }}
+          onNavToPrivacy={() => {
+            setAuthModal({ open: false, view: 'login' });
+            handleNavToPrivacy();
+          }}
         />
       )}
 
@@ -433,6 +454,14 @@ function AppInner() {
           onJoin={() => setAuthModal({ open: true, view: 'signup' })}
           onLogin={() => setAuthModal({ open: true, view: 'login' })}
         />
+      )}
+
+      {page === 'terms' && (
+        <TermsOfService onBack={() => goTo({ page: 'home' })} />
+      )}
+
+      {page === 'privacy' && (
+        <PrivacyPolicy onBack={() => goTo({ page: 'home' })} />
       )}
 
       {page === 'account' && (
