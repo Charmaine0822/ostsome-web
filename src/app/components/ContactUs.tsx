@@ -81,7 +81,7 @@ export function ContactUs() {
             {/* Socials */}
             <div className="flex items-center gap-3 pt-2">
               <a
-                href="https://instagram.com/ostsome"
+                href="https://www.instagram.com/ostsomesingapore/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="OSTSOME on Instagram"
@@ -90,7 +90,7 @@ export function ContactUs() {
                 <Instagram size={18} />
               </a>
               <a
-                href="https://facebook.com/ostsome"
+                href="https://www.facebook.com/OutdoorSportsTravel"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="OSTSOME on Facebook"
