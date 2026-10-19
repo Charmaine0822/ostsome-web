@@ -3,11 +3,6 @@ import { useProducts } from '../hooks/useProducts';
 import type { Product } from '../data/products';
 import { useAuth } from './AuthContext';
 import { getFostPrice } from '../data/pricing';
-import kandaoImg from '../../imports/image-7.png';
-import obsbotImg from '../../imports/obsbottiny.png';
-import skullcandyImg from '../../imports/image-9.png';
-import polaroidImg from '../../imports/image-10.png';
-import kospetImg from '../../imports/image-11.png';
 import { useFlashSaleActive, getFlashPrice } from '../data/flashSale';
 
 const featured = [
@@ -85,7 +80,7 @@ export function WhatsNewThisWeek({ onShopAll, onSelectProduct }: { onShopAll?: (
             const isPolaroid = product.handle === 'polaroid-now-instant-camera-gen3';
             const isKospet = product.handle === 'kospet-tank-m4-smartwatch';
             const isLifestyle = isKandao || isObsbot || isSkullcandy || isPolaroid || isKospet;
-            const imgSrc = isKandao ? kandaoImg : isObsbot ? obsbotImg : isSkullcandy ? skullcandyImg : isPolaroid ? polaroidImg : isKospet ? kospetImg : product.images[0];
+            const imgSrc = product.images[0];
             const isThird = i === 2;
             return (
               <div
@@ -143,7 +138,7 @@ export function WhatsNewThisWeek({ onShopAll, onSelectProduct }: { onShopAll?: (
             const LabelIcon = product.labelIcon;
             const isObsbot = product.handle === 'obsbot-tiny-3-lite-ai-powered-spatial-audio-4k-ptz-webcam';
             const isKospet = product.handle === 'kospet-tank-m4-smartwatch';
-            const imgSrc = isObsbot ? obsbotImg : isKospet ? kospetImg : product.images[0];
+            const imgSrc = product.images[0];
             return (
               <div
                 key={product.handle}
