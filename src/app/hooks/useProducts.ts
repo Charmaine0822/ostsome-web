@@ -100,7 +100,7 @@ export function useProducts() {
       });
     };
     const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
-    if (cachedProducts === null) refresh();
+    refresh();
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onFocus);
     const interval = window.setInterval(() => {
