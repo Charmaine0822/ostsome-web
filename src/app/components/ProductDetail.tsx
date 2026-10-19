@@ -77,6 +77,8 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
   const [shopifyPrices, setShopifyPrices] = useState<Record<string, number>>({});
   const [shopifyCompareAtPrices, setShopifyCompareAtPrices] = useState<Record<string, number | null>>({});
   const [variantsLoaded, setVariantsLoaded] = useState(false);
+  const [liveGallery, setLiveGallery] = useState<string[] | null>(null);
+  const [liveVariantImages, setLiveVariantImages] = useState<Record<string, string>>({});
   const [stockWarning, setStockWarning] = useState<{ requested: number; available: number; intent: 'cart' | 'checkout' } | null>(null);
 
   // Show lucky draw popup if arrived via QR (URL contains /products/)
@@ -94,8 +96,14 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
   // both go stale independently of each other, so both need a live
   // override, not just availability.
   useEffect(() => {
+    let cancelled = false;
+    setLiveGallery(null);
+    setLiveVariantImages({});
     fetchProductByHandle(product.handle).then(sp => {
+      if (cancelled) return;
       if (!sp) { setVariantsLoaded(true); return; }
+      setLiveGallery(sp.images.edges.map(({ node }) => node.url));
+      const imageMap: Record<string, string> = {};
       const idMap: Record<string, string> = {};
       const availMap: Record<string, boolean> = {};
       const qtyMap: Record<string, number | null> = {};
@@ -103,6 +111,7 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
       const compareAtMap: Record<string, number | null> = {};
       sp.variants.edges.forEach(({ node }) => {
         const key = skuKey(node.sku);
+        if (node.image?.url) imageMap[key] = node.image.url;
         idMap[key] = node.id;
         availMap[key] = node.availableForSale;
         qtyMap[key] = node.quantityAvailable ?? null;
@@ -120,18 +129,21 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
       if (sp.variants.edges.length === 1) {
         const only = sp.variants.edges[0].node;
         idMap['default'] = only.id;
+        if (only.image?.url) imageMap['default'] = only.image.url;
         availMap['default'] = only.availableForSale;
         qtyMap['default'] = only.quantityAvailable ?? null;
         priceMap['default'] = parseFloat(only.price.amount);
         compareAtMap['default'] = only.compareAtPrice ? parseFloat(only.compareAtPrice.amount) : null;
       }
+      setLiveVariantImages(imageMap);
       setShopifyVariants(idMap);
       setShopifyAvailability(availMap);
       setShopifyQuantity(qtyMap);
       setShopifyPrices(priceMap);
       setShopifyCompareAtPrices(compareAtMap);
       setVariantsLoaded(true);
-    }).catch(() => setVariantsLoaded(true));
+    }).catch(() => { if (!cancelled) setVariantsLoaded(true); });
+    return () => { cancelled = true; };
   }, [product.handle]);
 
   const variants = getVariants(product.handle);
@@ -197,13 +209,20 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
     ? Math.round(((effectiveComparePrice! - activePrice) / effectiveComparePrice!) * 100)
     : 0;
 
+  const getVariantImage = (variant: (typeof variants)[number] | undefined): string | undefined => {
+    if (!variant) return undefined;
+    return liveVariantImages[skuKey(variant.sku)] ?? (liveGallery === null ? variant.image : undefined);
+  };
+
   const allImages = useMemo(() => {
-    const variantImgs = variants
-      .map(v => v.image)
+    const gallery = liveGallery ?? product.images;
+    const variantImgs = variants.map(v => liveVariantImages[skuKey(v.sku)] ?? (liveGallery === null ? v.image : undefined))
       .filter((img): img is string => Boolean(img));
-    const combined = [...product.images, ...variantImgs];
-    return [...new Set(combined)] as string[];
-  }, [product.images, variants]);
+    return [...new Set([...gallery, ...variantImgs])];
+  }, [liveGallery, liveVariantImages, product.images, variants]);
+
+  useEffect(() => { setActiveImg(0); }, [product.handle]);
+  useEffect(() => { setActiveImg(i => Math.min(i, Math.max(0, allImages.length - 1))); }, [allImages]);
 
   const isColourOption = (name: string | null) =>
     name?.toLowerCase().includes('color') || name?.toLowerCase().includes('colour');
@@ -288,9 +307,9 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
     setSelectedOption1(val);
     setSelectedOption2(null);
     if (isColourOption(option1Name)) {
-      const v = variants.find(vv => vv.option1Value === val && vv.image);
-      if (v?.image) {
-        const idx = allImages.indexOf(v.image);
+      const v = variants.find(vv => vv.option1Value === val && getVariantImage(vv));
+      if (getVariantImage(v)) {
+        const idx = allImages.indexOf(getVariantImage(v)!);
         if (idx !== -1) setActiveImg(idx);
       }
     }
@@ -301,10 +320,10 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
     const v = variants.find(vv =>
       (!selectedOption1 || vv.option1Value === selectedOption1) &&
       vv.option2Value === val &&
-      vv.image
+      getVariantImage(vv)
     );
-    if (v?.image) {
-      const idx = allImages.indexOf(v.image);
+    if (getVariantImage(v)) {
+      const idx = allImages.indexOf(getVariantImage(v)!);
       if (idx !== -1) setActiveImg(idx);
     }
   }
@@ -716,7 +735,7 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
                 {isColourOption(option1Name) ? (
                   <div className="flex flex-wrap gap-2">
                     {option1Values.map((val) => {
-                      const v = variants.find(vv => vv.option1Value === val && vv.image);
+                      const v = variants.find(vv => vv.option1Value === val && getVariantImage(vv));
                       const available = isOption1ValueAvailable(val);
                       return (
                         <button
@@ -729,8 +748,8 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
                               : 'border-neutral-200 hover:border-neutral-400'
                           } ${!available ? 'opacity-40 grayscale' : ''}`}
                         >
-                          {v?.image ? (
-                            <img src={v.image} alt={val} className="w-full h-full object-cover" />
+                          {getVariantImage(v) ? (
+                            <img src={getVariantImage(v)} alt={val} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-[8px] text-neutral-400 p-0.5 text-center leading-tight">
                               {val}
@@ -800,8 +819,8 @@ export function ProductDetail({ product, onBack, onCheckout }: ProductDetailProp
                               : 'border-neutral-200 hover:border-neutral-400'
                           } ${!available ? 'opacity-40 grayscale' : ''}`}
                         >
-                          {v?.image ? (
-                            <img src={v.image} alt={val} className="w-full h-full object-cover" />
+                          {getVariantImage(v) ? (
+                            <img src={getVariantImage(v)} alt={val} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full bg-neutral-100 flex items-center justify-center text-[8px] text-neutral-400 p-0.5 text-center leading-tight">
                               {val}
