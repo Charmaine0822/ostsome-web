@@ -65,6 +65,24 @@ export function mapShopifyProduct(p: ShopifyProduct): Product {
 }
 
 // ─── HOOK ─────────────────────────────────────────────────────────────────────
+// Refresh Shopify data when the tab becomes active and every 2 minutes while
+// open. All mounted components share the same request, avoiding duplicate calls.
+const REFRESH_INTERVAL_MS = 2 * 60 * 1000;
+const listeners = new Set<(items: Product[]) => void>();
+
+function loadProducts(): Promise<Product[]> {
+  if (!fetchPromise) {
+    fetchPromise = fetchAllProducts()
+      .then(shopifyProducts => shopifyProducts.map(mapShopifyProduct).filter(p => p.price > 0))
+      .then(mapped => {
+        cachedProducts = mapped;
+        listeners.forEach(listener => listener(mapped));
+        return mapped;
+      })
+      .finally(() => { fetchPromise = null; });
+  }
+  return fetchPromise;
+}
 
 export function useProducts() {
   const [products, setProducts] = useState<Product[]>(cachedProducts ?? []);
@@ -72,34 +90,29 @@ export function useProducts() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (cachedProducts !== null) {
-      setProducts(cachedProducts);
-      setLoading(false);
-      return;
-    }
-
-    if (!fetchPromise) {
-      fetchPromise = fetchAllProducts().then(shopifyProducts =>
-        shopifyProducts
-          .map(mapShopifyProduct)
-          // Exclude products with no real price set in Shopify (shows as
-          // SGD 0.00) — these are incomplete listings, not actual deals.
-          .filter(p => p.price > 0)
-      );
-    }
-
-    fetchPromise
-      .then(mapped => {
-        cachedProducts = mapped;
-        setProducts(mapped);
-        setLoading(false);
-      })
-      .catch(err => {
+    let mounted = true;
+    const onUpdate = (items: Product[]) => { if (mounted) { setProducts(items); setLoading(false); setError(null); } };
+    listeners.add(onUpdate);
+    const refresh = () => {
+      loadProducts().catch(err => {
         console.error('Failed to fetch Shopify products:', err);
-        setError('Failed to load products');
-        setLoading(false);
-        fetchPromise = null; // allow retry
+        if (mounted) { setError('Failed to load products'); setLoading(false); }
       });
+    };
+    const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
+    if (cachedProducts === null) refresh();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, REFRESH_INTERVAL_MS);
+    return () => {
+      mounted = false;
+      listeners.delete(onUpdate);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      window.clearInterval(interval);
+    };
   }, []);
 
   return { products, loading, error };
