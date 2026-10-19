@@ -9,6 +9,7 @@ const STOREFRONT_API_URL = `https://${SHOPIFY_STORE_DOMAIN}/api/${SHOPIFY_API_VE
 
 async function storefrontFetch<T>(query: string, variables?: Record<string, unknown>): Promise<T> {
   const response = await fetch(STOREFRONT_API_URL, {
+    cache: 'no-store',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
