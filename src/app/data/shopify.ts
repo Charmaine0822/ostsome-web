@@ -97,7 +97,7 @@ export async function fetchAllProducts(): Promise<ShopifyProduct[]> {
           edges {
             node {
               id handle title vendor productType descriptionHtml
-              images(first: 10) { edges { node { url altText } } }
+              images(first: 100) { edges { node { url altText } } }
               variants(first: 20) {
                 edges {
                   node {
@@ -136,7 +136,7 @@ export async function fetchProductByHandle(handle: string): Promise<ShopifyProdu
     query GetProduct($handle: String!) {
       product(handle: $handle) {
         id handle title vendor productType descriptionHtml
-        images(first: 10) { edges { node { url altText } } }
+        images(first: 100) { edges { node { url altText } } }
         variants(first: 20) {
           edges {
             node {
