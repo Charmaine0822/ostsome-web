@@ -413,12 +413,14 @@ function ForgotView({ onBack, onSent }: { onBack: () => void; onSent: (email: st
     if (!isValidEmail(email)) { setError('Enter a valid email address'); return; }
     setLoading(true);
     try {
-      await customerResetPassword(email);
-      onSent(email); // always show sent screen (Shopify doesn't confirm if email exists)
+      const accepted = await customerResetPassword(email);
+      if (accepted) onSent(email);
+      else setError('Unable to request a reset link. Please try again later.');
     } catch {
-      onSent(email); // still show sent screen for security
+      setError('Unable to connect to Shopify. Please try again later.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   return (
@@ -473,7 +475,7 @@ function ForgotSentView({ email, onBack }: { email: string; onBack: () => void }
       </div>
       <div>
         <h2 className="text-xl font-bold text-black mb-2">Check your inbox</h2>
-        <p className="text-sm text-neutral-500 leading-relaxed">We've sent a password reset link to</p>
+        <p className="text-sm text-neutral-500 leading-relaxed">If this email is registered, a password reset link will be sent to</p>
         <p className="text-sm font-bold text-black mt-1">{email}</p>
       </div>
       <div className="bg-neutral-50 rounded-xl border border-neutral-100 px-5 py-4 text-xs text-neutral-500 leading-relaxed w-full">

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useState as useStateAlt, useEffect } from 'react';
-import { getCustomer, updateCustomerProfile, saveCustomerAddress } from '../data/shopify';
+import { getCustomer, updateCustomerProfile, saveCustomerAddress, changeCustomerPassword } from '../data/shopify';
 import {
   ChevronLeft, Package, User, Heart, Crown, Tag, Zap, Users, Gift,
   CalendarHeart, ChevronRight, Edit2, Save, X, MapPin, Phone, Mail,
@@ -284,6 +284,8 @@ function MyProfile() {
   const [changingPw, setChangingPw] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', next: '', confirm: '' });
   const [pwError, setPwError] = useState('');
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   // Load the customer's real saved data from Shopify (name, phone, address)
   // instead of showing placeholder mock values.
@@ -357,13 +359,27 @@ function MyProfile() {
     setSaving(false);
   }
 
-  function handlePwSave() {
+  async function handlePwSave() {
+    setPwError('');
+    setPwSuccess(false);
+    if (!shopifyToken || !user?.email) { setPwError('Please log in again before changing your password.'); return; }
     if (!pwForm.current) { setPwError('Enter your current password'); return; }
     if (pwForm.next.length < 8) { setPwError('New password must be at least 8 characters'); return; }
     if (pwForm.next !== pwForm.confirm) { setPwError('Passwords do not match'); return; }
-    setPwError('');
-    setChangingPw(false);
-    setPwForm({ current: '', next: '', confirm: '' });
+    if (pwForm.current === pwForm.next) { setPwError('Choose a different new password'); return; }
+    setPwSaving(true);
+    try {
+      const result = await changeCustomerPassword(shopifyToken, user.email, pwForm.current, pwForm.next);
+      if (!result.success) { setPwError(result.error ?? 'Could not update password.'); return; }
+      login({ ...user, shopifyToken: result.token });
+      setChangingPw(false);
+      setPwForm({ current: '', next: '', confirm: '' });
+      setPwSuccess(true);
+    } catch {
+      setPwError('Could not connect to Shopify. Please try again.');
+    } finally {
+      setPwSaving(false);
+    }
   }
 
   const Field = ({ label, value, editKey, type = 'text' }: { label: string; value: string; editKey: keyof typeof form; type?: string }) => (
@@ -481,6 +497,7 @@ function MyProfile() {
             <Edit2 size={12} /> Change
           </button>
         </div>
+        {pwSuccess && <p className="px-5 pt-3 text-xs text-green-600">Your password has been updated successfully.</p>}
         {changingPw ? (
           <div className="px-5 py-4 flex flex-col gap-3">
             {(['current', 'next', 'confirm'] as const).map(k => (
@@ -499,7 +516,7 @@ function MyProfile() {
             {pwError && <p className="text-xs text-red-500">{pwError}</p>}
             <div className="flex gap-2 mt-1">
               <button onClick={() => { setChangingPw(false); setPwError(''); }} className="flex-1 text-sm text-neutral-400 border border-neutral-200 py-2.5 rounded-xl hover:bg-neutral-50 transition">Cancel</button>
-              <button onClick={handlePwSave} className="flex-1 text-sm text-white bg-[#F16C10] hover:bg-[#d65f0e] py-2.5 rounded-xl font-bold transition">Update Password</button>
+              <button onClick={handlePwSave} disabled={pwSaving} className="flex-1 disabled:opacity-60 text-sm text-white bg-[#F16C10] hover:bg-[#d65f0e] py-2.5 rounded-xl font-bold transition">{pwSaving ? 'Updating…' : 'Update Password'}</button>
             </div>
           </div>
         ) : (
