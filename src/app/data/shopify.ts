@@ -376,6 +376,45 @@ export async function customerRegister(input: {
   return { success: true, errors: [] };
 }
 
+// Change the password in Shopify itself, not only in the local UI.
+export async function changeCustomerPassword(
+  token: string,
+  email: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<{ success: boolean; token?: string; error?: string }> {
+  const verified = await customerLogin(email, currentPassword);
+  if (!verified) return { success: false, error: 'Current password is incorrect.' };
+
+  const query = `
+    mutation ChangeCustomerPassword($token: String!, $customer: CustomerUpdateInput!) {
+      customerUpdate(customerAccessToken: $token, customer: $customer) {
+        customer { id }
+        customerAccessToken { accessToken expiresAt }
+        customerUserErrors { code field message }
+      }
+    }
+  `;
+  const data = await storefrontFetch<{
+    customerUpdate: {
+      customer: { id: string } | null;
+      customerAccessToken: { accessToken: string; expiresAt: string } | null;
+      customerUserErrors: { message: string }[];
+    };
+  }>(query, { token: verified.token, customer: { password: newPassword } });
+  const result = data.customerUpdate;
+  if (result.customerUserErrors.length || !result.customer) {
+    return { success: false, error: result.customerUserErrors[0]?.message ?? 'Could not update password.' };
+  }
+  // Shopify can rotate the customer access token after a password update.
+  // If it does not return one, authenticate with the new password.
+  const nextToken = result.customerAccessToken?.accessToken
+    ?? (await customerLogin(email, newPassword))?.token;
+  return nextToken
+    ? { success: true, token: nextToken }
+    : { success: false, error: 'Password updated. Please log in again with your new password.' };
+}
+
 export async function customerResetPassword(email: string): Promise<boolean> {
   const query = `
     mutation CustomerRecover($email: String!) {
